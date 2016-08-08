@@ -9,50 +9,10 @@ except ImportError:
 import sys
 import argparse
 import os
-import time
 import math
 import operator
-import itertools
 import utils
-from collections import Counter
-
-
-def build_vocab(docs, save_as):
-    start = time.time()
-    vocab = set()
-    for file in utils.iterate_corpus(docs):
-        with open(file, 'r') as f:
-            tokenized = itertools.chain.from_iterable(utils.tokenize(line) for line in f.readlines())
-        vocab.update(tokenized)
-    vocab = list(vocab)
-    pkl.dump(vocab, open(save_as, 'wb'))
-    print('Built vocabulary and saved it to "%s" in %s' % (save_as, utils.strtime(time.time() - start)), file=sys.stderr)
-    return vocab
-
-
-def build_index(docs, vocab, save_as):
-    start = time.time()
-    word2idx = dict([(v, k) for k, v in enumerate(vocab)])
-    tf = dict([(i, list()) for i in xrange(len(vocab))])
-    df = Counter()
-    n_docs = len(list(utils.iterate_corpus(docs)))
-    files = list()
-    for i, file in enumerate(utils.iterate_corpus(docs)):
-        print('%d/%d %s' % (i+1, n_docs, utils.strtime(time.time() - start)), file=sys.stderr, end='\r')
-        files.append(file)
-        with open(file, 'r') as f:
-            text = f.read()
-            word_counts = Counter(word2idx[w] for w in utils.tokenize(text))
-            df.update(word2idx[w] for w in set(utils.tokenize(text)))
-            n_words = utils.counter_sum(word_counts)
-            for word, count in word_counts.items():
-                tf[word].append((count / math.log(n_words), i))
-    for word, docs in tf.items():
-        docs.sort(key=lambda x: x[0], reverse=True)
-    tfidf = tf, df, files
-    pkl.dump(tfidf, open(save_as, 'wb'))
-    print('Processed %d documents in %s' % (n_docs, utils.strtime(time.time() - start)), file=sys.stderr)
-    return tfidf
+import build
 
 
 def generate_citation(sentence, index, search_depth=10):
@@ -105,7 +65,7 @@ def main():
     if not os.path.exists(options.vocab) or rebuild:
         assert options.documents is not None and os.path.exists(options.documents)
         print('Could not find vocab at "%s"; building there' % options.vocab, file=sys.stderr)
-        vocab = build_vocab(options.documents, options.vocab)
+        vocab = build.build_vocab(options.documents, options.vocab)
     else:
         vocab = pkl.load(open(options.vocab, 'rb'))
 
@@ -113,7 +73,7 @@ def main():
         assert options.documents is not None and os.path.exists(options.documents)
         print('Could not find vocab at "%s"; building there' % options.index, file=sys.stderr)
         try:
-            index = build_index(options.documents, vocab, options.index)
+            index = build.build_index(options.documents, vocab, options.index)
         except KeyError, e:
             print('Some document contained a word that was not in the vocab; regenerate the vocab to fix this.')
             raise e
