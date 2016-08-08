@@ -71,7 +71,7 @@ def main():
 
     if not os.path.exists(options.index) or rebuild:
         assert options.documents is not None and os.path.exists(options.documents)
-        print('Could not find vocab at "%s"; building there' % options.index, file=sys.stderr)
+        print('Could not find index at "%s"; building there' % options.index, file=sys.stderr)
         try:
             index = build.build_index(options.documents, vocab, options.index)
         except KeyError, e:
